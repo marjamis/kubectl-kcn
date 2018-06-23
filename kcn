@@ -5,11 +5,31 @@ FILE_LOCATION=~/.kube/kcn_cache
 # Error 1 - Unknown parameter supplied
 E_OPTERROR_UNKNOWN="1"
 
+COMMAND_LINE_OPTIONS_HELP="\nA script and kubectl plugin which makes it simply to ssh into nodes within your cluster.
+
+This script heavily relies on your ssh _config to determine how the connections are made to the nodes which allows you
+to easily connect to the nodes based on your unique networking configuration.
+
+This is made simpler by available flags which will allow you to select what value is passed into the ssh command, i.e.
+hostname/nodename, private-ip (as registered to k8s) or public-ip (obtained using AWS API calls).
+
+Examples:
+  kcn [options] <node>
+
+Options:
+  -l: An interactive method of selecting a node and how to ssh into it.
+  -a: Will use the node name as the destination for ssh
+  -i: Will use the nodes private IP within AWS
+  -p: Will find and use the nodes public IP within AWS
+
+Usage:
+  kcn [flags] [options]"
+
 function check_cache {
   echo $(grep "$1,$2" $FILE_LOCATION  2> /dev/null) | awk -F\, '{print $3}'
 }
-# @todo TODO Update the caching mechanism to be more within this function and remove the lines in the other functions
-# BODY Something like the below but actually working.
+# TODO Update the caching mechanism
+# BODY Something like the below but actually working. Also remove the lines in the other functions
 # function check_cache {
 #   data=$(grep "$1,$2" $FILE_LOCATION  2> /dev/null) | awk -F\, '{print $3}'
 #   if [ "$data" != "" ] ; then

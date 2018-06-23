@@ -7,7 +7,7 @@ longDesc: |
 
   This is made simpler by available flags which will allow you to select what value is passed into the ssh command, i.e. hostname/nodename, private-ip (as registered to k8s) or public-ip (obtained using AWS API calls).
 
-example: kubectl plugin kcnssh [options] <node>
+example: kubectl plugin kcn [options] <node>
 command: kcn
 flags:
   - name: private-ip

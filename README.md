@@ -47,19 +47,19 @@ Sample ~/.ssh/config file:
 ```
 # Defaults
 Host *
-ServerAliveInterval 120
-ServerAliveCountMax 30
-Compression yes
-LogLevel INFO
-VisualHostKey yes
+  ServerAliveInterval 120
+  ServerAliveCountMax 30
+  Compression yes
+  LogLevel INFO
+  VisualHostKey yes
 
 Host bastion
-HostName bastion.example.com
-User ec2-user
-IdentityFile ~/.ssh/bastion_private_key.pem
+  HostName bastion.example.com
+  User ec2-user
+  IdentityFile ~/.ssh/bastion_private_key.pem
 
 Host *.us-west-2.compute.internal
-IdentityFile ~/.ssh/node_private_key.pem
-User ec2-user
-ProxyCommand ssh bastion nc %h %p 2> /dev/null
+  IdentityFile ~/.ssh/node_private_key.pem
+  User ec2-user
+  ProxyCommand ssh bastion nc %h %p 2> /dev/null
 ```
