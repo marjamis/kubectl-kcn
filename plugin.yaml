@@ -1,0 +1,24 @@
+name: kcn
+shortDesc: Allows easy sshing into a clusters nodes in EKS.
+longDesc: |
+  A script and kubectl plugin which makes it simply to ssh into nodes within your cluster.
+
+  This script heavily relies on your ssh_config to determine how the connections are made to the nodes which allows you to easily connect to the nodes based on your unique networking configuration.
+
+  This is made simpler by available flags which will allow you to select what value is passed into the ssh command, i.e. hostname/nodename, private-ip (as registered to k8s) or public-ip (obtained using AWS API calls).
+
+example: kubectl plugin kcnssh [options] <node>
+command: kcn
+flags:
+  - name: private-ip
+    shorthand: i
+    desc: Will use the nodes private IP within AWS
+  - name: public-ip
+    shorthand: p
+    desc: Will find and use the nodes public IP within AWS
+  - name: nodename
+    shorthand: a
+    desc: Will use the node name as the destination for ssh
+  - name: list
+    shorthand: l
+    desc: An interactive method of selecting a node and how to ssh into it.

@@ -1,0 +1,112 @@
+#!/bin/sh -e
+
+# Cache file which is stored in ~/.kube as a lot of kubectl things are
+FILE_LOCATION=~/.kube/kcn_cache
+# Error 1 - Unknown parameter supplied
+E_OPTERROR_UNKNOWN="1"
+
+function check_cache {
+  echo $(grep "$1,$2" $FILE_LOCATION  2> /dev/null) | awk -F\, '{print $3}'
+}
+# @todo TODO Update the caching mechanism to be more within this function and remove the lines in the other functions
+# BODY Something like the below but actually working.
+# function check_cache {
+#   data=$(grep "$1,$2" $FILE_LOCATION  2> /dev/null) | awk -F\, '{print $3}'
+#   if [ "$data" != "" ] ; then
+#     >&2 echo "Cache hit for $1"
+#   else
+#     >&2 echo "Cache miss for $1"
+#   fi
+#
+#   echo "$data"
+# }
+
+function get_public_ip {
+  response=$(check_cache "$1,public")
+  if [ "$response" != "" ]; then
+    >&2 echo "Cache hit for $1"
+    echo $response
+    return
+  fi
+
+  >&2 echo "Cache miss for $1"
+  region=$(echo $1 | awk -F\. '{print $2}')
+  ip=$(aws ec2 describe-network-interfaces --query NetworkInterfaces[].Association.PublicIp --output text --filter Name=private-dns-name,Values=$1 --region $region)
+  printf "%s,%s,%s\n" $1 "public" $ip >> $FILE_LOCATION
+  echo $ip
+}
+
+function get_private_ip {
+  response=$(check_cache "$1,private")
+  if [ "$response" != "" ]; then
+    >&2 echo "Cache hit for $1"
+    echo $response
+    return
+  fi
+
+  >&2 echo "Cache miss for $1"
+  ip=$(kubectl get no $1 --no-headers=true --output=custom-columns=IP:.status.addresses[0].address)
+  printf "%s,%s,%s\n" $1 "private" $ip >> $FILE_LOCATION
+  echo $ip
+}
+
+function list_nodes {
+  IFS=$'\n'
+  NODES=()
+  count=0
+  for i in $(kubectl get no --no-headers=true --output=custom-columns=NAME:.metadata.name); do
+    printf "[$count] $i\n"
+    NODES+=("$i")
+    count=$(echo "$count+1" | bc)
+  done
+  read -p "Specify a number for a node to connect to: " node
+
+  count=0
+  for i in private-ip public-ip hostname; do
+    printf "[$count] $i\n"
+    count=$(echo "$count+1" | bc)
+  done
+  read -p "Which method of connecting: " method
+
+  case $method in
+    0) ssh $(get_private_ip ${NODES[$node]}) ;;
+    1) ssh $(get_public_ip ${NODES[$node]}) ;;
+    2) ssh ${NODES[$node]} ;;
+    *) echo "Incorrect value specified." ;;
+  esac
+}
+
+function help {
+  echo "Usage: `basename $0` -h for help";
+  echo "$COMMAND_LINE_OPTIONS_HELP"
+}
+
+# FIX This is likely just a tempoary workaround
+function kubectl_plugin_decoder {
+  if [ "$KUBECTL_PLUGINS_LOCAL_FLAG_PRIVATE_IP" != "" ] ; then
+    ssh $(get_private_ip $KUBECTL_PLUGINS_LOCAL_FLAG_PRIVATE_IP)
+  elif [ "$KUBECTL_PLUGINS_LOCAL_FLAG_PUBLIC_IP" != "" ] ; then
+    ssh $(get_public_ip $KUBECTL_PLUGINS_LOCAL_FLAG_PUBLIC_IP)
+  elif [ "$KUBECTL_PLUGINS_LOCAL_FLAG_NODENAME" != "" ] ; then
+    ssh $KUBECTL_PLUGINS_LOCAL_FLAG_NODENAME
+  elif [ "$KUBECTL_PLUGINS_LOCAL_FLAG_LIST" != "" ] ; then
+    list_nodes
+  else
+    help
+    exit $E_OPTERROR_UNKNOWN
+  fi
+}
+
+if [ $(env | grep -c KUBECTL_PLUGINS_DESCRIPTOR_NAME) -eq 1 ] ; then
+  kubectl_plugin_decoder
+else
+  getopts "a:i:p:hl" flag
+  case $flag in
+    i) ssh $(get_private_ip $OPTARG) ;;
+    p) ssh $(get_public_ip $OPTARG) ;;
+    a) ssh $OPTARG ;;
+    l) list_nodes ;;
+    h) help ;;
+    \?) help; exit $E_OPTERROR_UNKNOWN ;;
+  esac
+fi
