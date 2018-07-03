@@ -4,6 +4,8 @@
 FILE_LOCATION=~/.kube/kcn_cache
 # Error 1 - Unknown parameter supplied
 E_OPTERROR_UNKNOWN="1"
+# Error 2 - No option specified
+E_OPTERROR_NOOPTION="2"
 
 COMMAND_LINE_OPTIONS_HELP="\nA script and kubectl plugin which makes it simply to ssh into nodes within your cluster.
 
@@ -120,13 +122,14 @@ function kubectl_plugin_decoder {
 if [ $(env | grep -c KUBECTL_PLUGINS_DESCRIPTOR_NAME) -eq 1 ] ; then
   kubectl_plugin_decoder
 else
-  getopts "a:i:p:hl" flag
-  case $flag in
+  getopts "a:i:p:hl" flag || flag=""
+  case "$flag" in
     i) ssh $(get_private_ip $OPTARG) ;;
     p) ssh $(get_public_ip $OPTARG) ;;
     a) ssh $OPTARG ;;
     l) list_nodes ;;
     h) help ;;
     \?) help; exit $E_OPTERROR_UNKNOWN ;;
+    *) help; exit $E_OPTERROR_NOOPTION ;;
   esac
 fi
