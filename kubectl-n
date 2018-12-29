@@ -1,0 +1,115 @@
+#!/bin/sh -e
+
+# Cache file which is stored in ~/.kube as a lot of kubectl things are
+FILE_LOCATION=~/.kube/kcn_cache
+# Error 1 - Unknown parameter supplied
+E_OPTERROR_UNKNOWN="1"
+# Error 2 - No option specified
+E_OPTERROR_NOOPTION="2"
+# Error 3 - No IP found for selection
+E_OPTERROR_NOIP="3"
+
+COMMAND_LINE_OPTIONS_HELP="\nA kubectl plugin which makes it simple to ssh into nodes within your cluster.
+
+This script heavily relies on your ssh_config to determine how the connections are made to the nodes which allows easy connections to the nodes based on your unique networking configuration.
+
+This is made simpler by available flags to allow you to select what value is passed into the ssh command, i.e.
+hostname/nodename, private-ip (as registered to k8s) or public-ip (obtained using AWS API calls).
+
+Options:
+  -i: Will use the nodes private IP within AWS.
+  -p: Will find and use the nodes public IP within AWS.
+  -a: Will use the node name as the destination for ssh.
+  -l: An interactive method of selecting a node and how to ssh into it.
+  -d: Enable the scripts debug mode. i.e. Using Bash's set -x
+  -h: Displays this help.
+
+Usage:
+  kubectl n [flags] [node]"
+
+function check_cache {
+  data=$(grep "$1,$2" $FILE_LOCATION  2> /dev/null | awk -F\, '{print $3}')
+  if [ "$data" != "" ] ; then
+    >&2 echo "Cache hit for $1"
+  else
+    >&2 echo "Cache miss for $1"
+  fi
+
+  echo "$data"
+}
+
+function usePublicIp {
+  ip=$(check_cache "$1" "public")
+  if [ "$ip" == "" ]; then
+    region=$(echo $1 | awk -F\. '{print $2}')
+    ip=$(aws ec2 describe-network-interfaces --query NetworkInterfaces[].Association.PublicIp --output text --filter Name=private-dns-name,Values=$1 --region $region)
+    isIPSet $ip
+    printf "%s,%s,%s\n" $1 "public" $ip >> $FILE_LOCATION
+  fi
+
+  ssh $ip
+}
+
+function usePrivateIp {
+  ip=$(check_cache "$1" "private")
+  if [ "$ip" == "" ]; then
+    ip=$(kubectl get no $1 --no-headers=true --output=custom-columns=IP:.status.addresses[0].address)
+    isIPSet $ip
+    printf "%s,%s,%s\n" $1 "private" $ip >> $FILE_LOCATION
+  fi
+
+  ssh $ip
+}
+
+function isIPSet {
+  if [ "$1" == "" ] ; then
+    echo "No IP could be found"
+    exit $E_OPTERROR_NOIP
+  fi
+}
+
+function list_nodes {
+  IFS=$'\n'
+  NODES=()
+  count=0
+  for i in $(kubectl get no --no-headers=true --output=custom-columns=NAME:.metadata.name,VERSION:.status.nodeInfo.kubeletVersion); do
+    printf "[$count] $i\n"
+    NODES+=("$i")
+    count=$(echo "$count+1" | bc)
+  done
+  read -p "Specify a number for a node to connect to: " node
+
+  count=0
+  for i in private-ip public-ip hostname; do
+    printf "[$count] $i\n"
+    count=$(echo "$count+1" | bc)
+  done
+  read -p "Which method of connecting: " method
+
+  host=$(echo ${NODES[$node]} | awk '{print $1}')
+  case $method in
+    0) usePrivateIp $host ;;
+    1) usePublicIp $host ;;
+    2) ssh $host ;;
+    *) echo "Incorrect value/s specified." ;;
+  esac
+}
+
+function help {
+  echo "Usage: kubectl n -h for help";
+  echo "$COMMAND_LINE_OPTIONS_HELP"
+}
+
+while getopts "a:i:p:hled" flag ; do
+  case "$flag" in
+    i) usePrivateIp $OPTARG ;;
+    p) usePublicIp $OPTARG ;;
+    a) ssh $OPTARG ;;
+    l) list_nodes ;;
+    d) set -x ;;
+    h) help ;;
+    \?) help; exit $E_OPTERROR_UNKNOWN ;;
+    e) env; exit ;; # Secret option
+    *) help; exit $E_OPTERROR_NOOPTION ;;
+  esac
+done
