@@ -47,5 +47,5 @@ Host bastion
 Host *.us-west-2.compute.internal
   IdentityFile ~/.ssh/node_private_key.pem
   User ec2-user
-  ProxyCommand ssh bastion nc %h %p 2> /dev/null
+  ProxyCommand ssh bastion -W %h:%p
 ```
