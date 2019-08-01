@@ -10,7 +10,7 @@ A kubectl plugin which makes it simple to ssh into nodes within your cluster.
 
 This script heavily relies on your [ssh_config](https://linux.die.net/man/5/ssh_config) to determine how the connections are made to the nodes which allows you to easily connect to the nodes based on your unique networking configuration.
 
-This is made simpler by available flags which will allow you to select what value is passed into the ssh command, i.e. hostname/nodename, private-ip (as registered to k8s) or public-ip (obtained using AWS API calls).
+This is made simpler by flags which will allow you to select what value is passed into the ssh command, i.e. hostname/nodename, private-ip (as registered to k8s) or public-ip (obtained using AWS API calls).
 
 ### How to use
 Install the plugin by having the [script](./kubectl-n) in the $PATH of your shell. Once in the $PATH run:
@@ -19,7 +19,7 @@ kubectl plugin list
 ```
 to ensure kubectl can find the plugin and it will use it. Once properly in place the plugin can be used by running:
 ```bash
-kubectl n [options] <node>
+kubectl n [options] [node]
 ```
 For a complete list of options run:
 ```bash
