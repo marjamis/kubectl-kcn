@@ -55,6 +55,10 @@ function getAndUseIp {
   if [ "$ip" == "" ]; then
     if [ "$2" == "public" ] ; then
       region=$(echo $1 | awk -F\. '{print $2}')
+      if [ "$region" == "ec2" ] ; then
+        region="us-east-1"
+      fi
+
       ip=$(aws ec2 describe-network-interfaces --query NetworkInterfaces[].Association.PublicIp --output text --filter Name=private-dns-name,Values=$1 --region $region)
     elif [ "$2" == "private" ] ; then
       ip=$(kubectl get no $1 --no-headers=true --output=custom-columns=IP:.status.addresses[0].address)
